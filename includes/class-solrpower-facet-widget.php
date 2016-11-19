@@ -22,16 +22,16 @@ class SolrPower_Facet_Widget extends WP_Widget {
 	 */
 	public function widget( $args, $instance ) {
 		$this->dummy_query();
-		echo $args['before_widget'];
+		echo $args['before_widget']; // XSS ok.
 		if ( ! empty( $instance['title'] ) ) {
-			echo $args['before_title'] . $instance['title'] . $args['after_title'];
+			echo $args['before_title'] . esc_html( $instance['title'] ) . $args['after_title']; // XSS ok.
 		}
 		$this->facets = filter_input( INPUT_GET, 'facet', FILTER_SANITIZE_STRING, FILTER_REQUIRE_ARRAY );
-		echo '<form action="' . home_url( '/' ) . '" method="get" id="solr_facet">';
+		echo '<form action="' . esc_url( home_url( '/' ) ) . '" method="get" id="solr_facet">';
 		$this->render_searchbox();
 		$this->fetch_facets();
 		echo '</form>';
-		echo $args['after_widget'];
+		echo $args['after_widget']; // XSS ok.
 	}
 
 	/**
@@ -94,7 +94,7 @@ class SolrPower_Facet_Widget extends WP_Widget {
 			 */
 			$html = apply_filters( 'solr_facet_items', false, $facet_name, $data );
 			if ( $html ) {
-				echo $html;
+				echo $html; // XSS ok.
 				continue;
 			}
 			/**
@@ -120,35 +120,36 @@ class SolrPower_Facet_Widget extends WP_Widget {
 			echo '<ul>';
 
 			$facets_facet_name = array();
-			if( isset( $this->facets[ $facet_name ] ) ) {
+			if ( isset( $this->facets[ $facet_name ] ) ) {
 				$facets_facet_name = $this->facets[ $facet_name ];
-				if( is_array( $this->facets[ $facet_name ] ) ) {
+				if ( is_array( $this->facets[ $facet_name ] ) ) {
 					// Decode special characters of facet and store in temporary array
-					$facets_facet_name = array_map( array( __CLASS__, 'htmlspecialchars_decode' ), $this->facets[ $facet_name ] );
+					$facets_facet_name = array_map( array(
+						__CLASS__,
+						'htmlspecialchars_decode',
+					), $this->facets[ $facet_name ] );
 				}
 			}
 
-			foreach ( $values as $name => $count ):
+			foreach ( $values as $name => $count ) :
 
 				$nice_name = str_replace( '^^', '', $name );
 				$checked   = '';
 
 				if ( isset( $this->facets[ $facet_name ] )
-				     && in_array( htmlspecialchars_decode( $name ), $facets_facet_name )
+				     && in_array( htmlspecialchars_decode( $name ), $facets_facet_name, true )
 				) {
 					$checked = checked( true, true, false );
 				}
 				echo '<li>';
-				echo '<input type="checkbox" name="facet[' . esc_attr( $facet_name ) . '][]" value="' . esc_attr( $name ) . '" ' . $checked . '> ';
+				echo '<input type="checkbox" name="facet[' . esc_attr( $facet_name ) . '][]" value="' . esc_attr( $name ) . '" ' . $checked . '> '; // XSS ok.
 				echo esc_html( $nice_name );
 				echo ' (' . esc_html( $count ) . ')';
 				echo '</li>';
 			endforeach;
 
 			echo '</ul>';
-
-
-			echo '<a href="' . $this->reset_url( $facet_name ) . '">Reset</a>';
+			echo '<a href="' . esc_url( $this->reset_url( $facet_name ) ) . '">Reset</a>';
 
 		}
 
@@ -158,15 +159,21 @@ class SolrPower_Facet_Widget extends WP_Widget {
 	 * Reset link below facet list.
 	 *
 	 * @param string $facet_name
+	 *
+	 * @return string
 	 */
 	function reset_url( $facet_name ) {
 		$facets = $this->facets;
 		if ( ! isset( $facets[ $facet_name ] ) ) {
-			return;
+			return '#';
 		}
 		unset( $facets[ $facet_name ] );
+		$new_facets = array();
+		foreach ( $facets as $name => $facet ) :
+			$new_facets[ $name ] = str_replace( '^^', '&#94;&#94;', $facet );
+		endforeach;
 
-		return add_query_arg( array( 'facet' => $facets ) );
+		return add_query_arg( array( 'facet' => $new_facets ) );
 	}
 
 	/**
@@ -182,7 +189,7 @@ class SolrPower_Facet_Widget extends WP_Widget {
 		 *
 		 * @param string $html the search box html.
 		 */
-		echo apply_filters( 'solr_facet_searchbox', $html );
+		echo apply_filters( 'solr_facet_searchbox', $html ); // XSS ok.
 	}
 
 	/**
@@ -193,7 +200,6 @@ class SolrPower_Facet_Widget extends WP_Widget {
 	 * @return bool
 	 */
 	function show_facet( $facet ) {
-
 
 		if ( 0 < strpos( $facet, 'taxonomy' ) ) {
 			$facet = 'taxonomy';
@@ -225,7 +231,7 @@ class SolrPower_Facet_Widget extends WP_Widget {
 	}
 
 	function dummy_query() {
-		add_filter('solr_query',array(SolrPower_Api::get_instance(),'dismax_query'),10,2);
+		add_filter( 'solr_query', array( SolrPower_Api::get_instance(), 'dismax_query' ), 10, 2 );
 		global $wp_query;
 		$query = new WP_Query();
 		if ( ! $wp_query->get( 's' ) ) {
@@ -238,11 +244,11 @@ class SolrPower_Facet_Widget extends WP_Widget {
 	/**
 	 * Callback for array_map to decode html special characters
 	 *
-	 * @param $facet
+	 * @param string $facet
 	 *
 	 * @return string
 	 */
-	function htmlspecialchars_decode( $facet ){
+	function htmlspecialchars_decode( $facet ) {
 		return htmlspecialchars_decode( $facet, ENT_QUOTES );
 	}
 }
@@ -254,7 +260,7 @@ function solr_facet_search() {
 	$facet = new SolrPower_Facet_Widget();
 	$facet->dummy_query();
 	$facet->facets = filter_input( INPUT_GET, 'facet', FILTER_SANITIZE_STRING, FILTER_REQUIRE_ARRAY );
-	echo '<form action="' . home_url( '/' ) . '" method="get" id="solr_facet">';
+	echo '<form action="' . esc_url( home_url( '/' ) ) . '" method="get" id="solr_facet">';
 	$facet->render_searchbox();
 	$facet->fetch_facets();
 	echo '</form>';

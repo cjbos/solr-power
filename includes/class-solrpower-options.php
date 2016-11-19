@@ -37,7 +37,7 @@ class SolrPower_Options {
 		if ( ! is_multisite() ) {
 			add_options_page( 'Solr Options', 'Solr Options', 'manage_options', 'solr-power', array(
 				$this,
-				'options_page'
+				'options_page',
 			) );
 		}
 	}
@@ -45,7 +45,7 @@ class SolrPower_Options {
 	function add_network_pages() {
 		add_submenu_page( 'settings.php', 'Solr Options', 'Solr Options', 'manage_options', 'solr-power', array(
 			$this,
-			'options_page'
+			'options_page',
 		) );
 	}
 
@@ -147,6 +147,7 @@ class SolrPower_Options {
 		$clean['s4wp_default_operator']       = sanitize_text_field( $options['s4wp_default_operator'] );
 		$clean['s4wp_default_sort']           = sanitize_text_field( $options['s4wp_default_sort'] );
 		$clean['s4wp_solr_initialized']       = 1;
+
 		return $clean;
 	}
 
@@ -198,12 +199,12 @@ class SolrPower_Options {
 	 */
 	function filter_list2str( $input ) {
 		if ( ! is_array( $input ) ) {
-			return "";
+			return '';
 		}
 
 		$outval = implode( ',', $input );
 		if ( ! $outval ) {
-			$outval = "";
+			$outval = '';
 		}
 
 		return $outval;
@@ -211,7 +212,6 @@ class SolrPower_Options {
 
 	/**
 	 * Sets the default options.
-	 * @return array
 	 */
 	function initalize_options() {
 		$options = array();
@@ -252,18 +252,11 @@ class SolrPower_Options {
 	 * Checks to see if any actions were taken on the settings page.
 	 */
 	function check_for_actions() {
-
-		if ( ! isset( $_POST['action'] ) || ! current_user_can( 'manage_options' ) ) {
+		$action = filter_input( INPUT_POST, 'action', FILTER_SANITIZE_STRING );
+		if ( ! $action || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$action = sanitize_text_field( $_POST['action'] );
 		switch ( $action ) {
-			case 'update':
-				if ( ! $this->check_nonce( 'solr_update' ) ) {
-					return;
-				}
-				$this->save_options();
-				break;
 			case 'ping':
 				if ( ! $this->check_nonce( 'solr_ping' ) ) {
 					return;
@@ -301,7 +294,7 @@ class SolrPower_Options {
 				}
 				SolrPower_Sync::get_instance()->delete_all();
 				$output    = SolrPower_Api::get_instance()->submit_schema();
-				$this->msg = esc_html__( 'All Indexed Pages Deleted!', 'solr-for-wordpress-on-pantheon') .'<br />' . esc_html( $output );
+				$this->msg = esc_html__( 'All Indexed Pages Deleted!', 'solr-for-wordpress-on-pantheon' ) . '<br />' . esc_html( $output );
 				break;
 
 			case 'run_query':
@@ -324,10 +317,11 @@ class SolrPower_Options {
 	 * @return bool
 	 */
 	private function check_nonce( $field ) {
-		if ( ! isset( $_POST[ $field ] )
-		     || ! wp_verify_nonce( $_POST[ $field ], 'solr_action' )
+		$nonce = filter_input( INPUT_POST, $field, FILTER_SANITIZE_STRING );
+		if ( ! $nonce
+		     || ! wp_verify_nonce( $nonce, 'solr_action' )
 		) {
-			$this->msg = esc_html__( 'Action failed. Please try again.' . $field, 'solr-for-wordpress-on-pantheon' );
+			$this->msg = esc_html__( 'Action failed. Please try again.', 'solr-for-wordpress-on-pantheon' );
 
 			return false;
 		}
@@ -362,7 +356,7 @@ class SolrPower_Options {
 		$header   = $data['responseHeader'];
 
 		$out['hits']  = $response['numFound'];
-		$out['qtime'] = sprintf( __( "%.3f", 'solr-for-wordpress-on-pantheon' ), $header['QTime'] / 1000 );
+		$out['qtime'] = sprintf( '%.3f', $header['QTime'] / 1000 );
 
 
 		$this->msg = sprintf( '<p><strong>%s "' . esc_html( $qry ) . '
@@ -507,12 +501,12 @@ class SolrPower_Options {
 
 		$this->add_field( 's4wp_default_operator', 'Default Search Operator', $section, 'radio', null, array(
 			'OR',
-			'AND'
+			'AND',
 		) );
 
 		$this->add_field( 's4wp_default_sort', 'Default Sort', $section, 'select', null, array(
 			'score',
-			'displaydate'
+			'displaydate',
 		) );
 	}
 
@@ -529,13 +523,12 @@ class SolrPower_Options {
 	private function add_field( $name, $title, $section, $type, $filter = null, $choices = null ) {
 		add_settings_field( $name, $title, array(
 			$this,
-			'render_field'
+			'render_field',
 		), 'solr-power', $section, array(
 			'field'   => $name,
 			'type'    => $type,
 			'filter'  => $filter,
-			'choices' => $choices
+			'choices' => $choices,
 		) );
 	}
-
 }
